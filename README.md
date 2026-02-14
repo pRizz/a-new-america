@@ -106,7 +106,7 @@ PORT=5000
 | --- | --- | --- |
 | `DATABASE_URL` | Yes | PostgreSQL connection string for Drizzle and sessions |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Yes | Clerk publishable key exposed to Vite frontend and used by backend JWKS flow |
-| `SESSION_SECRET` | Recommended | Secret used by `express-session`; app falls back to a weak default in dev |
+| `SESSION_SECRET` | Yes | Secret used by `express-session`; required at startup |
 | `PORT` | No | Port for server listen, default `5000` |
 | `NODE_ENV` | No | Runtime mode selector (`development` vs `production`) |
 

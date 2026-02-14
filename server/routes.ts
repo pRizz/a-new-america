@@ -10,6 +10,7 @@ import { randomUUID } from "crypto";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { requireSessionSecret } from "./env";
 let geoip: any = null;
 try {
   geoip = require("geoip-lite");
@@ -35,7 +36,7 @@ export async function registerRoutes(
         pool: pool,
         createTableIfMissing: true,
       }),
-      secret: process.env.SESSION_SECRET || "rename-usa-dev-secret-change-me",
+      secret: requireSessionSecret(),
       resave: false,
       saveUninitialized: false,
       cookie: {
