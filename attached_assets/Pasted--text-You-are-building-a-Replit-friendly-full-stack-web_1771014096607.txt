@@ -1,0 +1,242 @@
+```text
+You are building a Replit-friendly, full-stack web app. Output a complete runnable project with clear run instructions and sensible defaults for Replit. Use Next.js (TypeScript) + Tailwind + Prisma. Default DB: SQLite (file-based) so it runs immediately on Replit; if DATABASE_URL is present, switch to Postgres automatically.
+
+APP
+Name: “Rename USA: Elo Vote”
+Purpose: Users vote between two candidate aliases for the United States; rankings use ELO. The app is open-source-minded and must be extremely transparent about anti-spam rules.
+
+HARD REQUIREMENTS
+- Homepage “/” is the voting UI immediately.
+- Authentication required to vote and submit names.
+- Account creation requires completing 4 captcha challenges BEFORE OAuth begins (pre-auth gate). OAuth buttons are locked until gate completes.
+- Voting requires a minimum of 4 captcha challenges per vote (always).
+- Submitting a new name requires a minimum of 15 captcha challenges (always), plus global minimums that can increase over time.
+- Two separate ELO leaderboards per name:
+  - American ELO
+  - Non-American ELO
+- “American” classification is ONLY: 50 US states + Washington DC (no territories). Privacy constraints apply (below).
+- Privacy + trust model:
+  - Do NOT ask for location.
+  - Do NOT request browser geolocation permission.
+  - Do NOT ask users to select a state.
+  - Do NOT trust client-provided location/state.
+  - Do NOT store IP addresses, raw headers, precise coordinates, city, or address.
+- Captcha must be self-hosted/open-source, tunable, and must use a mix of captcha types. No Google/Cloudflare.
+- Anti-abuse must include per-user hourly rate limiting and be extensible (policy modules) without painful migrations.
+- Mobile responsive and pleasant UX.
+
+REPLIT REQUIREMENTS
+- Provide a single Next.js app (no separate backend repo).
+- Must run with “npm install” then “npm run dev” (or “npm start” for production).
+- Bind to 0.0.0.0 and use PORT env var if provided (Replit-friendly).
+- Include a README with:
+  - How to run on Replit
+  - Where to set env vars for OAuth
+  - How the captcha system works (formulas)
+  - How to migrate SQLite -> Postgres by setting DATABASE_URL
+
+ROUTES
+- “/” vote
+- “/leaderboard” sortable leaderboard
+- “/submit” add a new candidate name (heavy anti-spam)
+- “/about” explain fairness, ELO, privacy, anti-spam (or always-available modal)
+
+SEED DATA
+Seed at least these names (+ ~10 safe/fun options):
+- “The United Countries of America”
+- “The United Cities of America”
+- “The United City-States of America”
+All start with eloAmerican=1000 and eloNonAmerican=1000.
+
+AUTH (OAuth, many options)
+Use Auth.js / NextAuth (or equivalent) on Next.js.
+- Offer multiple providers in UI (show only configured ones):
+  - GitHub, Google, Apple, Microsoft, Discord
+  - Facebook, X/Twitter
+  - Include “Instagram” ONLY if it’s truly practical as a login provider via the chosen OAuth stack; otherwise omit rather than faking it.
+- Implementation:
+  - OAuth buttons are disabled until the pre-auth captcha gate completes.
+  - After OAuth callback, create user row and mark account valid only if the pre-auth gate token was completed recently (<= 10 minutes). If not, require gate again.
+- Do not display any user name/email publicly.
+
+AMERICAN vs NON-AMERICAN CLASSIFICATION (privacy-preserving)
+Because we cannot ask for location and cannot store IP:
+- Implement best-effort passive inference ONLY IF feasible using server-side IP -> region lookup using a local/offline database.
+- If you cannot reliably do this on Replit without violating privacy rules, default all users to Non-American.
+- Store only coarse results:
+  - inferredCountryCode (optional)
+  - inferredUsStateOrDc (optional; only if HIGH confidence)
+  - isAmerican boolean
+- Never persist IP, headers, coordinates.
+
+CAPTCHA STACK (mixed, self-hosted, tunable)
+Implement a modular captcha engine system with plans and challenges. The app must work out-of-the-box with no external services.
+
+Required engines (must be included and used):
+1) PoW engine A (open-source, embeddable) — e.g., ALTCHA-style PoW
+2) PoW engine B (different PoW implementation) — e.g., Cap-style PoW
+3) svg_text engine — generate SVG text captcha with tunable length/noise/distortion/fonts (use an OSS library like svg-captcha or implement similarly)
+4) math engine — generate tunable arithmetic/logic prompts
+
+Optional engines (only if easy; must degrade gracefully if not enabled):
+- mCaptcha (self-hosted) via docker-compose and adapter
+- Wicketkeeper (self-hosted) via docker-compose and adapter
+
+Captcha Plans
+- A captcha plan is multiple steps (captchaChallenges) and expires (10 minutes).
+- Each step uses one engine; steps must be mixed (not all same type).
+- Store only hashed expected answers for svg_text/math. Never store plaintext answers.
+
+Pre-auth captcha gate (account creation)
+- requiredCount = 4
+- difficulty = at least 80
+- Must include at least 1 PoW, 1 svg_text, 1 math, and 1 additional mixed step.
+
+Voting captcha requirements (minimum 4 always)
+- difficulty scale 0..100
+- user fields: captchaDifficulty, captchaDebt, lastCaptchaDecayAt
+- Defaults:
+  - initialCaptchaDifficulty = 75
+  - minCaptchaDifficulty = 60
+  - maxCaptchaDifficulty = 95
+  - initialCaptchaDebt = 0
+- After successful vote:
+  - captchaDebt += 10
+  - captchaDifficulty += 1 (cap at max)
+- Decay (applied lazily on any user action):
+  - every 3 days:
+    - captchaDebt -= 15 (floor 0)
+    - captchaDifficulty -= 2 (floor minCaptchaDifficulty)
+
+Vote required count and difficulty:
+- voteRequiredCount = max(4, 4 + floor(captchaDebt / 30))
+- voteDifficulty = clamp(captchaDifficulty + floor(captchaDebt / 25), 0..100)
+
+Vote engine mixing:
+- Every vote plan must include at least:
+  - 1 PoW
+  - 1 svg_text
+  - 1 math
+  - remaining steps rotate across available engines, prefer variety (>= 3 engine types per plan when possible).
+
+Submit new name captcha requirements (minimum 15 always)
+GlobalConfig defaults:
+- globalMinCaptchaForSubmitName = 85 initially; increase by +2 after each successful submission; cap 95.
+- globalMinCaptchaCountForSubmitName = 15 initially; increase by +1 after every 25 successful submissions; cap 25.
+
+Submit plan formulas:
+- submitRequiredCount = max(globalMinCaptchaCountForSubmitName, 15 + floor(captchaDebt / 20))
+- submitDifficulty = max(globalMinCaptchaForSubmitName, clamp(captchaDifficulty + floor(captchaDebt / 15), 0..100))
+
+Submit engine mixing requirements:
+- At least 5 PoW steps total
+- At least 5 svg_text steps total
+- At least 3 math steps total
+- Rotate engines; avoid long runs of same engine.
+
+TRANSPARENCY / FAIRNESS UI (non-negotiable)
+Provide an “About / Fairness & Transparency” section (page or modal) that explains:
+- ELO basics (two leaderboards: American vs Non-American)
+- Privacy statement (no location prompts; no IP storage; inference approximate; if uncertain, default Non-American)
+- Captcha system:
+  - Why there’s a pre-auth gate (4 challenges before OAuth)
+  - Why votes require at least 4 challenges
+  - Why submissions require at least 15 challenges
+  - Show the exact formulas in plain language:
+    - voteRequiredCount and voteDifficulty
+    - submitRequiredCount and submitDifficulty
+    - debt/difficulty updates and decay rules
+- In the UI near actions, show the user:
+  - their current captchaDebt and captchaDifficulty
+  - computed requiredCount + difficulty for the action
+  - how it changes with usage and time
+
+DATA MODEL (Prisma)
+Use Prisma models roughly equivalent to:
+- Name (candidate)
+- Vote (append-only vote record)
+- User (minimal profile + captcha state + isValidAccount)
+- GlobalConfig (singleton)
+- CaptchaPlan
+- CaptchaChallenge
+- RateLimitBucket
+- AbuseEvent
+Use indices for:
+- case-insensitive uniqueness on Name.text (store normalizedText)
+- voteAttemptId uniqueness per user
+- rate limit windows
+- captcha plan expiration queries
+
+VOTING BEHAVIOR
+- Homepage shows two distinct server-selected active names.
+- Voting updates ELO only for the user’s population:
+  - if user.isAmerican -> eloAmerican
+  - else -> eloNonAmerican
+- Matchup counts increment for BOTH names shown:
+  - voteCountTotal++
+  - voteCountAmerican++ OR voteCountNonAmerican++ depending on population
+- globalConfig.totalVotes++ once per successful vote.
+- Use idempotency: voteAttemptId to prevent double submission.
+
+LEADERBOARD
+- “/leaderboard” table listing all active names.
+Columns:
+- Name
+- American ELO
+- Non-American ELO
+- Total votes
+- American votes
+- Non-American votes
+- Created date
+- Optional lastVotedAt
+Sortable columns (asc/desc). Default sort: American ELO desc.
+Mobile: horizontal scroll.
+
+SUBMIT FLOW
+- Requires auth and user.isValidAccount=true
+- Account age >= 24 hours
+- Rate limit submit: max 2 successful submissions per user per day
+- Only 1 active submit captcha plan at a time
+Name validation:
+- Normalize whitespace, trim
+- length 3..60
+- must contain letters (reject punctuation/emoji-only)
+- reject repeated single-character spam
+- case-insensitive uniqueness
+- blocklist for hateful/prohibited terms (basic but present)
+On success:
+- create Name with ELOs 1000, counters 0
+- update global minimums
+- log AbuseEvent
+
+ANTI-ABUSE (extensible policy module)
+Implement an AbusePolicy layer with composable checks:
+- Vote rate limit: max 120 votes per user per hour (server-enforced)
+- Submit rate limit: max 2 per user per day (server-enforced)
+- Account age gate for submit
+- Strike system:
+  - repeated rate-limit blocks or repeated captcha failures => increase captchaDebt and record a strike
+- Log allow/block outcomes to AbuseEvent with reason codes
+
+CONNECTED STATS (approx ok)
+Header shows:
+- Title
+- Total Votes
+- Approx Americans Connected
+- Approx Non-Americans Connected
+Implementation:
+- user.lastSeenAt updated on app load + periodic ping (2–5 minutes)
+- “connected” = lastSeenAt within last 15 minutes
+- recompute counts at most every 10 minutes; store in GlobalConfig
+- Americans vs Non-Americans based only on user.isAmerican
+
+DELIVERABLE
+- A complete Next.js + Prisma + Tailwind project that runs on Replit immediately.
+- README with setup steps and env vars.
+- Clean code structure:
+  - /lib/elo
+  - /lib/abusePolicy
+  - /lib/captcha/engines/*
+  - /app routes + API routes
+- No external paid services required; captchas must be self-hosted.
+```
