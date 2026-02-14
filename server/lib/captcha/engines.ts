@@ -52,6 +52,8 @@ export function generateSvgText(difficulty: number): ChallengeResult {
   const captcha = svgCaptcha.create({
     size,
     noise,
+    width: 280,
+    height: 90,
     color: true,
     background: "#f5f5f5",
     charPreset: "abcdefghjkmnpqrstuvwxyz23456789",
@@ -86,6 +88,8 @@ export function generateMath(difficulty: number): ChallengeResult {
 
   const captcha = svgCaptcha.createMathExpr({
     noise,
+    width: 200,
+    height: 80,
     color: true,
     background: "#f5f5f5",
     mathMin,

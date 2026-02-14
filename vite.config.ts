@@ -32,8 +32,14 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    allowedHosts: ["localhost", "127.0.0.1", ".localhost"],
     fs: {
       strict: true,
+      allow: [
+        path.resolve(import.meta.dirname),
+        path.resolve(import.meta.dirname, "shared"),
+        path.resolve(import.meta.dirname, "attached_assets"),
+      ],
       deny: ["**/.*"],
     },
   },

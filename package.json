@@ -8,7 +8,7 @@
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push:development": "NODE_ENV=development node -r dotenv-flow/config ./node_modules/.bin/drizzle-kit push"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.60.0",
@@ -51,6 +51,7 @@
     "cmdk": "^1.1.1",
     "connect-pg-simple": "^10.0.0",
     "date-fns": "^3.6.0",
+    "dotenv-flow": "^4.1.0",
     "drizzle-orm": "^0.39.3",
     "drizzle-zod": "^0.7.0",
     "embla-carousel-react": "^8.6.0",

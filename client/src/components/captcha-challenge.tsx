@@ -325,7 +325,7 @@ export function CaptchaChallenge({ planType, onComplete, onCancel }: CaptchaChal
       {challenge.engineType === "svg_text" && (
         <div className="space-y-3">
           <div
-            className="flex justify-center p-3 bg-muted rounded-md"
+            className="flex justify-center items-center w-full min-h-[110px] p-4 bg-muted rounded-md [&_svg]:w-full [&_svg]:h-auto"
             dangerouslySetInnerHTML={{ __html: challenge.data.svg }}
             data-testid="captcha-svg-image"
           />
@@ -352,7 +352,7 @@ export function CaptchaChallenge({ planType, onComplete, onCancel }: CaptchaChal
       {challenge.engineType === "math" && (
         <div className="space-y-3">
           <div
-            className="flex justify-center p-3 bg-muted rounded-md"
+            className="flex justify-center items-center w-full min-h-[112px] p-4 bg-muted rounded-md [&_svg]:w-full [&_svg]:h-auto"
             dangerouslySetInnerHTML={{ __html: challenge.data.svg }}
             data-testid="captcha-math-svg"
           />
