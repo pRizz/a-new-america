@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { users, names, votes, captchaPlans, captchaChallenges, globalConfig, rateLimitBuckets, abuseEvents } from "@shared/schema";
+import { captchaConfig } from "./lib/captcha/config";
 import type { User, InsertUser, Name, InsertName, Vote, InsertVote, CaptchaPlan, CaptchaChallenge, GlobalConfig } from "@shared/schema";
 import { eq, and, ne, sql, desc, asc, gte, lte, lt, count, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -73,7 +74,7 @@ export class DatabaseStorage implements IStorage {
       isAmerican: data.isAmerican ?? false,
       inferredCountryCode: data.inferredCountryCode,
       inferredUsState: data.inferredUsState,
-      captchaDifficulty: data.captchaDifficulty ?? 75,
+      captchaDifficulty: data.captchaDifficulty ?? captchaConfig.defaultUserCaptchaDifficulty,
       captchaDebt: data.captchaDebt ?? 0,
     }).returning();
     return user;

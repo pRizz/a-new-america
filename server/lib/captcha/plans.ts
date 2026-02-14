@@ -1,4 +1,5 @@
 import type { EngineType } from "./engines";
+import { captchaConfig } from "./config";
 
 export interface PlanConfig {
   requiredCount: number;
@@ -64,8 +65,9 @@ export function getEngineSequence(planType: string, count: number): EngineType[]
 }
 
 export function computeVoteRequirements(captchaDifficulty: number, captchaDebt: number) {
-  const voteRequiredCount = Math.max(4, 4 + Math.floor(captchaDebt / 30));
-  const voteDifficulty = Math.min(100, Math.max(0, captchaDifficulty + Math.floor(captchaDebt / 25)));
+  const { voteBaseCount, voteDebtCountDivisor, voteDebtDifficultyDivisor } = captchaConfig;
+  const voteRequiredCount = Math.max(voteBaseCount, voteBaseCount + Math.floor(captchaDebt / voteDebtCountDivisor));
+  const voteDifficulty = Math.min(100, Math.max(0, captchaDifficulty + Math.floor(captchaDebt / voteDebtDifficultyDivisor)));
   return { voteRequiredCount, voteDifficulty };
 }
 
@@ -75,8 +77,9 @@ export function computeSubmitRequirements(
   globalMinDifficulty: number,
   globalMinCount: number
 ) {
-  const submitRequiredCount = Math.max(globalMinCount, 15 + Math.floor(captchaDebt / 20));
-  const userDifficulty = Math.min(100, Math.max(0, captchaDifficulty + Math.floor(captchaDebt / 15)));
+  const { submitBaseCount, submitDebtCountDivisor, submitDebtDifficultyDivisor } = captchaConfig;
+  const submitRequiredCount = Math.max(globalMinCount, submitBaseCount + Math.floor(captchaDebt / submitDebtCountDivisor));
+  const userDifficulty = Math.min(100, Math.max(0, captchaDifficulty + Math.floor(captchaDebt / submitDebtDifficultyDivisor)));
   const submitDifficulty = Math.max(globalMinDifficulty, userDifficulty);
   return { submitRequiredCount, submitDifficulty };
 }
@@ -87,15 +90,16 @@ export function applyDecay(captchaDifficulty: number, captchaDebt: number, lastD
   decayPeriods: number;
 } {
   if (!lastDecayAt) return { captchaDifficulty, captchaDebt, decayPeriods: 0 };
+  const { decayPeriodDays, decayDebtReduction, decayDifficultyReduction, decayDifficultyFloor } = captchaConfig;
   const now = Date.now();
   const elapsed = now - lastDecayAt.getTime();
-  const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
-  const periods = Math.floor(elapsed / threeDaysMs);
+  const periodMs = decayPeriodDays * 24 * 60 * 60 * 1000;
+  const periods = Math.floor(elapsed / periodMs);
   if (periods <= 0) return { captchaDifficulty, captchaDebt, decayPeriods: 0 };
 
   for (let i = 0; i < periods; i++) {
-    captchaDebt = Math.max(0, captchaDebt - 15);
-    captchaDifficulty = Math.max(60, captchaDifficulty - 2);
+    captchaDebt = Math.max(0, captchaDebt - decayDebtReduction);
+    captchaDifficulty = Math.max(decayDifficultyFloor, captchaDifficulty - decayDifficultyReduction);
   }
   return { captchaDifficulty, captchaDebt, decayPeriods: periods };
 }

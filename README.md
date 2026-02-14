@@ -110,6 +110,40 @@ PORT=5000
 | `PORT` | No | Port for server listen, default `5000` |
 | `NODE_ENV` | No | Runtime mode selector (`development` vs `production`) |
 
+### Optional CAPTCHA configuration
+
+All captcha-related numbers are centralized in `server/lib/captcha/config.ts` with defaults matching current behavior. Override via env vars for deployment tuning:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `CAPTCHA_PREAUTH_REQUIRED_COUNT` | 4 | Steps for preauth and registration plans |
+| `CAPTCHA_PREAUTH_DIFFICULTY` | 80 | Difficulty for preauth and registration |
+| `CAPTCHA_DELETE_REQUIRED_COUNT` | 2 | Steps for delete plan |
+| `CAPTCHA_DELETE_DIFFICULTY` | 75 | Difficulty for delete plan |
+| `CAPTCHA_DEFAULT_REQUIRED_COUNT` | 4 | Fallback required count |
+| `CAPTCHA_DEFAULT_DIFFICULTY` | 80 | Fallback difficulty |
+| `CAPTCHA_VOTE_BASE_COUNT` | 4 | Base count in vote formula |
+| `CAPTCHA_VOTE_DEBT_COUNT_DIVISOR` | 30 | Divisor for vote count vs debt |
+| `CAPTCHA_VOTE_DEBT_DIFFICULTY_DIVISOR` | 25 | Divisor for vote difficulty vs debt |
+| `CAPTCHA_SUBMIT_BASE_COUNT` | 15 | Base count in submit formula |
+| `CAPTCHA_SUBMIT_DEBT_COUNT_DIVISOR` | 20 | Divisor for submit count vs debt |
+| `CAPTCHA_SUBMIT_DEBT_DIFFICULTY_DIVISOR` | 15 | Divisor for submit difficulty vs debt |
+| `CAPTCHA_DECAY_PERIOD_DAYS` | 3 | Days per decay period |
+| `CAPTCHA_DECAY_DEBT_REDUCTION` | 15 | Debt reduction per period |
+| `CAPTCHA_DECAY_DIFFICULTY_REDUCTION` | 2 | Difficulty reduction per period |
+| `CAPTCHA_DECAY_DIFFICULTY_FLOOR` | 60 | Minimum difficulty after decay |
+| `CAPTCHA_SUBMIT_MAX_GLOBAL_DIFFICULTY` | 95 | Cap for global submit difficulty |
+| `CAPTCHA_SUBMIT_DIFFICULTY_INCREMENT` | 2 | Per-submit difficulty bump |
+| `CAPTCHA_SUBMIT_COUNT_INCREMENT_PERIOD` | 25 | Submissions before count bump |
+| `CAPTCHA_SUBMIT_MAX_GLOBAL_COUNT` | 25 | Cap for global submit count |
+| `CAPTCHA_SUBMIT_DEFAULT_DISPLAY_DIFFICULTY` | 85 | Display value when submit blocked |
+| `CAPTCHA_DEFAULT_USER_DIFFICULTY` | 75 | New user default difficulty |
+| `CAPTCHA_SVG_TEXT_NOISE_DIVISOR` | 20 | svg_text noise formula |
+| `CAPTCHA_SVG_TEXT_NOISE_MAX` | 5 | Max svg_text noise |
+| `CAPTCHA_MATH_NOISE_DIVISOR` | 12 | math captcha noise formula |
+| `CAPTCHA_MATH_NOISE_MIN` | 1 | Min math noise |
+| `CAPTCHA_MATH_NOISE_MAX` | 8 | Max math noise |
+
 ## Scripts and Commands
 
 ```json

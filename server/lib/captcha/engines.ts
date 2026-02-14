@@ -1,6 +1,7 @@
 import svgCaptcha from "svg-captcha";
 import { randomBytes, createHash } from "crypto";
 import bcrypt from "bcryptjs";
+import { captchaConfig } from "./config";
 
 export type EngineType = "pow_a" | "pow_b" | "svg_text" | "math";
 
@@ -11,17 +12,19 @@ export interface ChallengeResult {
 }
 
 function difficultyToLength(difficulty: number): number {
-  if (difficulty < 50) return 3;
-  if (difficulty < 70) return 4;
-  if (difficulty < 85) return 5;
-  return 6;
+  const { svgTextLengthThresholds, svgTextLengths } = captchaConfig;
+  for (let i = 0; i < svgTextLengthThresholds.length; i++) {
+    if (difficulty < svgTextLengthThresholds[i]) return svgTextLengths[i];
+  }
+  return svgTextLengths[svgTextLengths.length - 1];
 }
 
 function difficultyToPoWTarget(difficulty: number): number {
-  if (difficulty < 30) return 2;
-  if (difficulty < 60) return 3;
-  if (difficulty < 90) return 4;
-  return 5;
+  const { powTargetThresholds, powTargets } = captchaConfig;
+  for (let i = 0; i < powTargetThresholds.length; i++) {
+    if (difficulty < powTargetThresholds[i]) return powTargets[i];
+  }
+  return powTargets[powTargets.length - 1];
 }
 
 export function generatePowA(difficulty: number): ChallengeResult {
@@ -48,7 +51,8 @@ export function generatePowB(difficulty: number): ChallengeResult {
 
 export function generateSvgText(difficulty: number): ChallengeResult {
   const size = difficultyToLength(difficulty);
-  const noise = Math.min(5, Math.floor(difficulty / 20));
+  const { svgTextNoiseDivisor, svgTextNoiseMax } = captchaConfig;
+  const noise = Math.min(svgTextNoiseMax, Math.floor(difficulty / svgTextNoiseDivisor));
   const captcha = svgCaptcha.create({
     size,
     noise,
@@ -67,24 +71,16 @@ export function generateSvgText(difficulty: number): ChallengeResult {
 }
 
 export function generateMath(difficulty: number): ChallengeResult {
-  const noise = Math.max(1, Math.min(8, Math.floor(difficulty / 12)));
-  let mathMin: number;
-  let mathMax: number;
-  let mathOperator: string;
-
-  if (difficulty < 40) {
-    mathMin = 1;
-    mathMax = 20;
-    mathOperator = "+";
-  } else if (difficulty < 60) {
-    mathMin = 5;
-    mathMax = 30;
-    mathOperator = "+-";
-  } else {
-    mathMin = 10;
-    mathMax = 50;
-    mathOperator = "+-";
+  const { mathNoiseDivisor, mathNoiseMin, mathNoiseMax, mathThresholds, mathTiers } = captchaConfig;
+  const noise = Math.max(mathNoiseMin, Math.min(mathNoiseMax, Math.floor(difficulty / mathNoiseDivisor)));
+  let tier = mathTiers.length - 1;
+  for (let i = 0; i < mathThresholds.length; i++) {
+    if (difficulty < mathThresholds[i]) {
+      tier = i;
+      break;
+    }
   }
+  const { min: mathMin, max: mathMax, op: mathOperator } = mathTiers[tier];
 
   const captcha = svgCaptcha.createMathExpr({
     noise,

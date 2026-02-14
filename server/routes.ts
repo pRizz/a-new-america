@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { calculateElo } from "./lib/elo";
 import { generateChallenge, verifyPoW, verifyHashedAnswer, type EngineType } from "./lib/captcha/engines";
 import { getEngineSequence, computeVoteRequirements, computeSubmitRequirements, applyDecay } from "./lib/captcha/plans";
+import { captchaConfig } from "./lib/captcha/config";
 import { checkVoteRateLimit, incrementVoteRateLimit, checkSubmitRateLimit, incrementSubmitRateLimit, checkAccountAge, logAbuseEvent, validateNameText } from "./lib/abusePolicy";
 import { randomUUID } from "crypto";
 import connectPgSimple from "connect-pg-simple";
@@ -338,7 +339,7 @@ export async function registerRoutes(
       await storage.updateCaptchaPlan(captchaPlanId, { consumedAt: new Date() });
 
       const newDebt = Math.min(user.captchaDebt + 10, 1000);
-      const newDifficulty = Math.min(user.captchaDifficulty + 1, 95);
+      const newDifficulty = Math.min(user.captchaDifficulty + 1, captchaConfig.submitMaxGlobalDifficulty);
       await storage.updateUser(req.session.userId, {
         captchaDebt: newDebt,
         captchaDifficulty: newDifficulty,
@@ -405,7 +406,14 @@ export async function registerRoutes(
     if (!user) return res.status(401).json({ message: "User not found" });
 
     if (!user.isValidAccount) {
-      return res.json({ canSubmit: false, reason: "Account not valid", captchaDifficulty: user.captchaDifficulty, captchaDebt: user.captchaDebt, submitRequiredCount: 15, submitDifficulty: 85 });
+      return res.json({
+        canSubmit: false,
+        reason: "Account not valid",
+        captchaDifficulty: user.captchaDifficulty,
+        captchaDebt: user.captchaDebt,
+        submitRequiredCount: captchaConfig.submitBaseCount,
+        submitDifficulty: captchaConfig.submitDefaultDisplayDifficulty,
+      });
     }
 
     const ageCheck = await checkAccountAge(req.session.userId);
@@ -478,9 +486,15 @@ export async function registerRoutes(
 
       const config = await storage.getGlobalConfig();
       const newTotalSubmissions = config.totalSubmissions + 1;
-      const newMinDifficulty = Math.min(95, config.globalMinCaptchaForSubmitName + 2);
-      const newMinCount = newTotalSubmissions % 25 === 0
-        ? Math.min(25, config.globalMinCaptchaCountForSubmitName + 1)
+      const {
+        submitMaxGlobalDifficulty,
+        submitDifficultyIncrement,
+        submitCountIncrementPeriod,
+        submitMaxGlobalCount,
+      } = captchaConfig;
+      const newMinDifficulty = Math.min(submitMaxGlobalDifficulty, config.globalMinCaptchaForSubmitName + submitDifficultyIncrement);
+      const newMinCount = newTotalSubmissions % submitCountIncrementPeriod === 0
+        ? Math.min(submitMaxGlobalCount, config.globalMinCaptchaCountForSubmitName + 1)
         : config.globalMinCaptchaCountForSubmitName;
 
       await storage.updateGlobalConfig({
@@ -515,15 +529,15 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Authentication required for this captcha type" });
       }
 
-      let requiredCount = 4;
-      let difficulty = 80;
+      let requiredCount = captchaConfig.defaultRequiredCount;
+      let difficulty = captchaConfig.defaultDifficulty;
 
       if (planType === "preauth") {
         if (req.session.completedPreauthPlanId) {
           return res.status(400).json({ message: "Preauth already completed" });
         }
-        requiredCount = 4;
-        difficulty = 80;
+        requiredCount = captchaConfig.preauthRequiredCount;
+        difficulty = captchaConfig.preauthDifficulty;
       } else if (planType === "registration") {
         if (sessionUserId) {
           const regUser = await storage.getUser(sessionUserId);
@@ -531,8 +545,8 @@ export async function registerRoutes(
             return res.status(400).json({ message: "Account already activated" });
           }
         }
-        requiredCount = 4;
-        difficulty = 80;
+        requiredCount = captchaConfig.preauthRequiredCount;
+        difficulty = captchaConfig.preauthDifficulty;
       } else if (planType === "vote" && sessionUserId) {
         const user = await applyUserDecay(sessionUserId);
         if (user) {
@@ -554,8 +568,8 @@ export async function registerRoutes(
           difficulty = reqs.submitDifficulty;
         }
       } else if (planType === "delete") {
-        requiredCount = 2;
-        difficulty = 75;
+        requiredCount = captchaConfig.deleteRequiredCount;
+        difficulty = captchaConfig.deleteDifficulty;
       }
 
       const plan = await storage.createCaptchaPlan({
